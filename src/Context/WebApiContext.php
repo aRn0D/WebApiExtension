@@ -257,6 +257,49 @@ class WebApiContext implements ApiClientAwareContext
     }
 
     /**
+     * Checks that response body contains JSON from PyString using regex.
+     *
+     * Do not check that the response body /only/ contains the JSON from PyString,
+     *
+     * @param PyStringNode $jsonString
+     *
+     * @throws \RuntimeException
+     *
+     * @Then /^(?:the )?response should contain json using regex:$/
+     */
+    public function theResponseShouldContainJsonUsingRegex(PyStringNode $jsonString)
+    {
+        $etalon = json_decode($this->replacePlaceHolder($jsonString->getRaw()), true);
+        $actual = $this->response->json();
+
+        if (null === $etalon) {
+            throw new \RuntimeException(
+                "Can not convert etalon to json:\n" . $this->replacePlaceHolder($jsonString->getRaw())
+            );
+        }
+
+        Assertions::assertGreaterThanOrEqual(count($etalon), count($actual));
+
+        $this->checkResponseUsingRegex($etalon, $actual);
+    }
+
+    /**
+     * @param array $etalon
+     * @param array $actual
+     */
+    protected function checkResponseUsingRegex(array $etalon, array $actual)
+    {
+        foreach ($etalon as $key => $needle) {
+            Assertions::assertArrayHasKey($key, $actual);
+            if (is_array($etalon[$key])) {
+                $this->checkResponseUsingRegex($etalon[$key], $actual[$key]);
+            } else {
+                Assertions::assertRegExp(sprintf('/%s/i', $etalon[$key]), (string)$actual[$key]);
+            }
+        }
+    }
+
+    /**
      * Prints last response body.
      *
      * @Then print response
